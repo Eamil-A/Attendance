@@ -31,5 +31,9 @@
     "approval-workflow"
   ],
   "author": "Antigravity Engineering Team",
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.1",
+    "vitest": "^5.0.5"
+  }
 }

@@ -1,6 +1,7 @@
 import { app } from './app';
 import { env } from './config/env';
 import { pool, checkDatabaseHealth } from './config/database';
+import { schedulerService } from './services/schedulerService';
 
 const server = app.listen(env.PORT, async () => {
   console.log(`====================================================`);
@@ -19,6 +20,8 @@ const server = app.listen(env.PORT, async () => {
     console.warn(`[Database] PostgreSQL connection warning: ${dbHealth.error}`);
     console.warn(`[Database] Server running. Please ensure PostgreSQL is running for full functionality.`);
   }
+  // Start scheduler service
+  schedulerService.start();
 });
 
 // Graceful shutdown handling
@@ -29,6 +32,7 @@ const shutdown = async (signal: string) => {
     try {
       await pool.end();
       console.log('PostgreSQL connection pool drained.');
+      schedulerService.stop();
       process.exit(0);
     } catch (err) {
       console.error('Error closing database pool:', err);

@@ -33,6 +33,7 @@ VALUES
     '11111111-1111-1111-1111-111111111111',
     'approval_workflow',
     '{
+        "require_faculty_review": true,
         "default_stages": ["FACULTY_ADVISOR", "HOD"],
         "require_dean_if_budget_exceeds": 50000,
         "require_dean_if_inter_university": true,
@@ -58,6 +59,16 @@ VALUES
         "max_advance_booking_days": 60
     }'::jsonb,
     'AIT Venue Booking Constraints'
+),
+(
+    '11111111-1111-1111-1111-111111111111',
+    'registration_policy',
+    '{
+        "allow_student_cancellation": false,
+        "allow_waitlist": false,
+        "prevent_time_conflict": true
+    }'::jsonb,
+    'AIT Student Registration & Cancellation Policy'
 ) ON CONFLICT (university_id, config_key) DO UPDATE SET config_value = EXCLUDED.config_value;
 
 -- University 2 Configs (Strictly divergent policies to verify PolicyService isolation)
@@ -105,7 +116,8 @@ INSERT INTO resources (id, university_id, name, type, capacity, location, status
 VALUES
     ('c1111111-1111-1111-1111-111111111111', '11111111-1111-1111-1111-111111111111', 'Dr. A.P.J. Abdul Kalam Auditorium', 'AUDITORIUM', 600, 'Main Academic Block - Ground Floor', 'AVAILABLE'),
     ('c2222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111', 'Aryabhata Seminar Hall', 'SEMINAR_HALL', 150, 'Science Block - 2nd Floor', 'AVAILABLE'),
-    ('c3333333-3333-3333-3333-333333333333', '11111111-1111-1111-1111-111111111111', 'Alan Turing Advanced Computing Lab', 'COMPUTER_LAB', 75, 'CSE Department - 3rd Floor', 'AVAILABLE')
+    ('c3333333-3333-3333-3333-333333333333', '11111111-1111-1111-1111-111111111111', 'Alan Turing Advanced Computing Lab', 'COMPUTER_LAB', 75, 'CSE Department - 3rd Floor', 'AVAILABLE'),
+    ('c4444444-4444-4444-4444-444444444444', '11111111-1111-1111-1111-111111111111', 'Main Campus Central Amphitheatre', 'VENUE', 1200, 'Central Sports Quadrangle', 'AVAILABLE')
 ON CONFLICT (university_id, name) DO NOTHING;
 
 -- Resources for University 2 (MSU)

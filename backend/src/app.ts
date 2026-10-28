@@ -1,9 +1,11 @@
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response } from 'express';
+import session from 'express-session';
 import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
 import { env } from './config/env';
 import { apiRouter } from './routes';
+import { errorHandler } from './middlewares/auth';
 
 export const app = express();
 
@@ -27,6 +29,27 @@ if (env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
+// ---------------------------------------------------------------
+// Session Configuration
+// ---------------------------------------------------------------
+// In-memory session store is acceptable for development and tests.
+// Production and integration tests against a live database should
+// use connect-pg-simple (wired in server.ts when DB is available).
+app.use(
+  session({
+    name: 'sid',
+    secret: env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: env.SESSION_MAX_AGE_MS,
+    },
+  })
+);
+
 // Mount API router under /api
 app.use('/api', apiRouter);
 
@@ -41,14 +64,5 @@ app.use((req: Request, res: Response) => {
   });
 });
 
-// Centralized Error Handling Middleware
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('Unhandled Application Error:', err.stack || err.message);
-  res.status(500).json({
-    success: false,
-    error: {
-      message: env.NODE_ENV === 'production' ? 'Internal server error' : err.message,
-      code: 'INTERNAL_SERVER_ERROR',
-    },
-  });
-});
+// Centralized Error Handler
+app.use(errorHandler);
