@@ -222,10 +222,25 @@ export const eventService = {
     else if (input.decision === 'REVISION_REQUESTED') action = 'FACULTY_RETURN';
     else action = 'FACULTY_REJECT';
 
+    let hasOtherFacultyReviewers = true;
+    if (event.organizer_id === user.id) {
+      try {
+        const otherFacultyCount = await eventRepository.countOtherFacultyAdvisors(
+          event.department_id,
+          user.id,
+          user.universityId
+        );
+        hasOtherFacultyReviewers = otherFacultyCount > 0;
+      } catch {
+        hasOtherFacultyReviewers = false;
+      }
+    }
+
     const transition = eventStateMachine.transition(action, {
       event,
       actor: user,
       remarks: input.remarks,
+      hasOtherFacultyReviewers,
     });
 
     return await transaction(async (client) => {
@@ -792,6 +807,19 @@ export const eventService = {
         cancelledAt: new Date().toISOString(),
       },
     });
+
+    // Publish SSE registration_count_update so live counters update without reload
+    try {
+      const updatedCount = await eventRepository.countActiveRegistrations(eventId);
+      sseService.publish({
+        type: 'registration_count_update',
+        universityId,
+        data: {
+          eventId,
+          activeRegistrations: updatedCount,
+        },
+      });
+    } catch { /* SSE publish failure must never fail cancellation */ }
 
     return cancelled;
   },

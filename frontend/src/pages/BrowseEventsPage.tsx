@@ -21,6 +21,10 @@ interface EventItem {
   departmentName?: string;
   status: string;
   capacity: number;
+  budget?: number;
+  organizerId?: string;
+  departmentId?: string;
+  universityId?: string;
   activeRegistrationsCount?: number;
   isRegistered?: boolean;
   organizerName?: string;
@@ -36,6 +40,30 @@ const STATUS_BADGE: Record<string, 'info' | 'success' | 'warning' | 'default' | 
 };
 
 const PAGE_SIZE = 9;
+
+export function normalizeEvent(e: any): EventItem {
+  return {
+    id: e.id,
+    title: e.title,
+    description: e.description,
+    category: e.category,
+    startTime: e.startTime || e.start_time,
+    endTime: e.endTime || e.end_time,
+    registrationDeadline: e.registrationDeadline || e.registration_deadline,
+    venueName: e.venueName || e.venue_name,
+    venueLocation: e.venueLocation || e.venue_location,
+    departmentName: e.departmentName || e.department_name,
+    status: e.status,
+    capacity: e.capacity,
+    budget: e.budget != null ? Number(e.budget) : 0,
+    organizerId: e.organizerId || e.organizer_id,
+    departmentId: e.departmentId || e.department_id,
+    universityId: e.universityId || e.university_id,
+    activeRegistrationsCount: e.activeRegistrationsCount ?? e.active_registrations_count ?? 0,
+    isRegistered: e.isRegistered ?? e.is_registered ?? false,
+    organizerName: e.organizerName || e.organizer_name,
+  };
+}
 
 export function BrowseEventsPage() {
   const { user } = useAuth();
@@ -67,7 +95,7 @@ export function BrowseEventsPage() {
         // Re-fetch published list when an event status changes
         fetch('/api/v1/events/published', { credentials: 'include' })
           .then(r => r.json())
-          .then(d => { if (d.data?.events) setEvents(d.data.events); })
+          .then(d => { if (d.data?.events) setEvents(d.data.events.map(normalizeEvent)); })
           .catch(() => {});
       }
     },
@@ -76,7 +104,7 @@ export function BrowseEventsPage() {
   useEffect(() => {
     fetch('/api/v1/events/published', { credentials: 'include' })
       .then((r) => r.json())
-      .then((d) => { if (d.data?.events) setEvents(d.data.events); })
+      .then((d) => { if (d.data?.events) setEvents(d.data.events.map(normalizeEvent)); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

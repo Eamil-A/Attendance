@@ -20,6 +20,7 @@ export interface TransitionContext {
   actor: AuthenticatedUser;
   facultyReviewRequired?: boolean;
   remarks?: string;
+  hasOtherFacultyReviewers?: boolean;
 }
 
 export interface TransitionResult {
@@ -69,7 +70,7 @@ export class EventStateMachine {
           throw new BadRequestError(`Cannot perform faculty review on event with status '${current}'. Expected PENDING_FACULTY_REVIEW.`);
         }
 
-        this.validateFacultyReviewer(event, actor);
+        this.validateFacultyReviewer(event, actor, ctx.hasOtherFacultyReviewers, action);
 
         return {
           fromStatus: current,
@@ -85,7 +86,7 @@ export class EventStateMachine {
           throw new BadRequestError(`Cannot return event from status '${current}'. Expected PENDING_FACULTY_REVIEW.`);
         }
 
-        this.validateFacultyReviewer(event, actor);
+        this.validateFacultyReviewer(event, actor, ctx.hasOtherFacultyReviewers, action);
 
         return {
           fromStatus: current,
@@ -101,7 +102,7 @@ export class EventStateMachine {
           throw new BadRequestError(`Cannot reject event from status '${current}'. Expected PENDING_FACULTY_REVIEW.`);
         }
 
-        this.validateFacultyReviewer(event, actor);
+        this.validateFacultyReviewer(event, actor, ctx.hasOtherFacultyReviewers, action);
 
         return {
           fromStatus: current,
@@ -226,9 +227,16 @@ export class EventStateMachine {
 
   /**
    * Validates that the actor is authorized to perform Faculty Coordinator review.
-   * Prevents self-review if faculty created the event.
+   * Prevents self-review if faculty created the event, but allows recommending to HOD
+   * when no other authorized faculty reviewer exists in the department so the workflow
+   * does not deadlock.
    */
-  private validateFacultyReviewer(event: EventRow, actor: AuthenticatedUser): void {
+  private validateFacultyReviewer(
+    event: EventRow,
+    actor: AuthenticatedUser,
+    hasOtherFacultyReviewers: boolean = true,
+    action?: EventAction
+  ): void {
     const isAdmin = actor.roles.some((r) => r.role === 'SYSTEM_ADMIN' || r.role === 'UNIVERSITY_ADMIN');
     if (isAdmin) return;
 
@@ -243,7 +251,11 @@ export class EventStateMachine {
 
     // Prevention of self-review
     if (event.organizer_id === actor.id) {
-      throw new ForbiddenError('Self-review violation: An organizer cannot review their own event proposal.');
+      // If there are other faculty advisors available, route to them (self-review forbidden).
+      // If there are NO other faculty reviewers in the department and action is recommending to HOD, allow it.
+      if (hasOtherFacultyReviewers || action !== 'FACULTY_APPROVE') {
+        throw new ForbiddenError('Self-review violation: An organizer cannot review their own event proposal.');
+      }
     }
   }
 

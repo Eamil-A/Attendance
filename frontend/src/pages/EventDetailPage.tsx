@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useSSE } from '../hooks/useSSE';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -74,10 +75,28 @@ export function EventDetailPage() {
       }
       const data = await res.json();
       // Backend returns { event, approvals, revisions }
-      const ev = data.data?.event || data.data;
+      const rawEv = data.data?.event || data.data;
       const approvals = data.data?.approvals || [];
       const revisions = data.data?.revisions || [];
-      setEvent({ ...ev, approvals, revisions });
+      const ev: EventDetail = {
+        ...rawEv,
+        organizerId: rawEv.organizerId || rawEv.organizer_id,
+        departmentId: rawEv.departmentId || rawEv.department_id,
+        universityId: rawEv.universityId || rawEv.university_id,
+        startTime: rawEv.startTime || rawEv.start_time,
+        endTime: rawEv.endTime || rawEv.end_time,
+        registrationDeadline: rawEv.registrationDeadline || rawEv.registration_deadline,
+        venueName: rawEv.venueName || rawEv.venue_name,
+        venueLocation: rawEv.venueLocation || rawEv.venue_location,
+        departmentName: rawEv.departmentName || rawEv.department_name,
+        activeRegistrationsCount: rawEv.activeRegistrationsCount ?? rawEv.active_registrations_count ?? 0,
+        isRegistered: rawEv.isRegistered ?? rawEv.is_registered ?? false,
+        organizerName: rawEv.organizerName || rawEv.organizer_name,
+        organizerEmail: rawEv.organizerEmail || rawEv.organizer_email,
+        approvals,
+        revisions,
+      };
+      setEvent(ev);
     } catch {
       setError('Network error loading event');
     } finally {
@@ -86,6 +105,24 @@ export function EventDetailPage() {
   };
 
   useEffect(() => { loadEvent(); }, [id]);
+
+  // Live SSE listener for real-time registration count updates without manual refresh
+  useSSE({
+    eventTypes: ['registration_count_update', 'event_status_change'],
+    onEvent: (e) => {
+      if (e.type === 'registration_count_update') {
+        const { eventId, activeRegistrations } = e.data as { eventId: string; activeRegistrations: number };
+        if (id === eventId) {
+          setEvent(prev => prev ? { ...prev, activeRegistrationsCount: activeRegistrations } : prev);
+        }
+      } else if (e.type === 'event_status_change') {
+        const { eventId, status } = e.data as { eventId: string; status: any };
+        if (id === eventId) {
+          setEvent(prev => prev ? { ...prev, status } : prev);
+        }
+      }
+    },
+  });
 
   const roles = user?.roles.map(r => r.role) ?? [];
   const perms = user?.permissions ?? [];
@@ -419,19 +456,23 @@ export function EventDetailPage() {
           )}
 
           {/* Faculty approval actions */}
-          {canApproveFaculty && event.status === 'PENDING_FACULTY_REVIEW' && !isOrganizer && (
+          {canApproveFaculty && event.status === 'PENDING_FACULTY_REVIEW' && (!isOrganizer || roles.includes('FACULTY_ADVISOR')) && (
             <Card>
               <h3 style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)', marginBottom: '1rem' }}>Faculty Review</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
                 <Button variant="secondary" fullWidth size="sm" onClick={() => setApprovalModal('faculty_approve')}>
                   <CheckCircle2 size={14} /> Recommend to HOD
                 </Button>
-                <Button variant="secondary" fullWidth size="sm" style={{ color: 'var(--warning)' }} onClick={() => setApprovalModal('faculty_return')}>
-                  <RotateCcw size={14} /> Return for Revision
-                </Button>
-                <Button variant="secondary" fullWidth size="sm" style={{ color: 'var(--danger)' }} onClick={() => setApprovalModal('faculty_reject')}>
-                  <XCircle size={14} /> Reject
-                </Button>
+                {!isOrganizer && (
+                  <>
+                    <Button variant="secondary" fullWidth size="sm" style={{ color: 'var(--warning)' }} onClick={() => setApprovalModal('faculty_return')}>
+                      <RotateCcw size={14} /> Return for Revision
+                    </Button>
+                    <Button variant="secondary" fullWidth size="sm" style={{ color: 'var(--danger)' }} onClick={() => setApprovalModal('faculty_reject')}>
+                      <XCircle size={14} /> Reject
+                    </Button>
+                  </>
+                )}
               </div>
             </Card>
           )}

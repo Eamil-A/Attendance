@@ -50,7 +50,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
 
   // Filter events needing approval
   const pendingEvents = events.filter((e) => {
-    if (userRole === 'FACULTY_EVENT_COORDINATOR') {
+    if (userRole === 'FACULTY_EVENT_COORDINATOR' || userRole === 'FACULTY_ADVISOR') {
       return e.status === 'PENDING_FACULTY_REVIEW';
     }
     if (userRole === 'HOD') {
@@ -153,9 +153,9 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
             Proposal Approval & Governance Queue
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginTop: '0.25rem' }}>
-            {userRole === 'FACULTY_EVENT_COORDINATOR' && 'Review student event proposals and recommend them to Department HOD or return for revision.'}
+            {(userRole === 'FACULTY_EVENT_COORDINATOR' || userRole === 'FACULTY_ADVISOR') && 'Review student event proposals and recommend them to Department HOD or return for revision.'}
             {userRole === 'HOD' && 'Grant formal institutional authorization or reject proposals with preserved governance records.'}
-            {userRole !== 'FACULTY_EVENT_COORDINATOR' && userRole !== 'HOD' && 'Institutional approval pipeline monitoring across all academic stages.'}
+            {userRole !== 'FACULTY_EVENT_COORDINATOR' && userRole !== 'FACULTY_ADVISOR' && userRole !== 'HOD' && 'Institutional approval pipeline monitoring across all academic stages.'}
           </p>
         </div>
         <div
@@ -198,7 +198,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {pendingEvents.map((evt) => {
             const statusStyle = getStatusColor(evt.status);
-            const isSelfCreated = evt.organizerId === userId;
+            const isSelfCreated = (evt.organizerId || (evt as any).organizer_id) === userId;
 
             return (
               <div
@@ -289,14 +289,14 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
                     <Calendar size={15} color="var(--accent-primary)" />
                     <span>
-                      {new Date(evt.startTime).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {evt.startTime ? new Date(evt.startTime).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
                     <Clock size={15} color="var(--accent-primary)" />
                     <span>
-                      {new Date(evt.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -{' '}
-                      {new Date(evt.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {evt.startTime ? new Date(evt.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''} -{' '}
+                      {evt.endTime ? new Date(evt.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
@@ -305,11 +305,11 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
                     <Users size={15} color="var(--accent-primary)" />
-                    <span>Capacity: {evt.capacity} students</span>
+                    <span>Capacity: {evt.capacity ?? 0} students</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
                     <DollarSign size={15} color="var(--accent-primary)" />
-                    <span>Estimated Budget: ₹{evt.budget.toLocaleString()}</span>
+                    <span>Estimated Budget: ₹{(Number(evt.budget) || 0).toLocaleString()}</span>
                   </div>
                 </div>
 
@@ -348,7 +348,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                   }}
                 >
                   {/* Faculty Actions */}
-                  {evt.status === 'PENDING_FACULTY_REVIEW' && (userRole === 'FACULTY_EVENT_COORDINATOR' || userRole === 'SYSTEM_ADMIN') && (
+                  {evt.status === 'PENDING_FACULTY_REVIEW' && (userRole === 'FACULTY_EVENT_COORDINATOR' || userRole === 'FACULTY_ADVISOR' || userRole === 'SYSTEM_ADMIN' || userRole === 'UNIVERSITY_ADMIN') && (
                     <>
                       <button
                         onClick={() => openActionModal(evt, 'FACULTY_RETURN')}
@@ -392,7 +392,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                       </button>
                       <button
                         onClick={() => openActionModal(evt, 'FACULTY_APPROVE')}
-                        disabled={isSelfCreated}
+                        disabled={isSelfCreated && userRole !== 'FACULTY_ADVISOR' && userRole !== 'FACULTY_EVENT_COORDINATOR'}
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -404,8 +404,8 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                           borderRadius: 'var(--radius-md)',
                           fontSize: '0.85rem',
                           fontWeight: 600,
-                          cursor: isSelfCreated ? 'not-allowed' : 'pointer',
-                          opacity: isSelfCreated ? 0.5 : 1,
+                          cursor: (isSelfCreated && userRole !== 'FACULTY_ADVISOR' && userRole !== 'FACULTY_EVENT_COORDINATOR') ? 'not-allowed' : 'pointer',
+                          opacity: (isSelfCreated && userRole !== 'FACULTY_ADVISOR' && userRole !== 'FACULTY_EVENT_COORDINATOR') ? 0.5 : 1,
                         }}
                       >
                         <CheckCircle size={15} /> Recommend to HOD
@@ -414,7 +414,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                   )}
 
                   {/* HOD Actions */}
-                  {evt.status === 'UNDER_HOD_REVIEW' && (userRole === 'HOD' || userRole === 'SYSTEM_ADMIN') && (
+                  {evt.status === 'UNDER_HOD_REVIEW' && (userRole === 'HOD' || userRole === 'SYSTEM_ADMIN' || userRole === 'UNIVERSITY_ADMIN') && (
                     <>
                       <button
                         onClick={() => openActionModal(evt, 'HOD_REJECT')}
@@ -696,7 +696,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                       </p>
                     )}
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
-                      Decided: {new Date(entry.decidedAt).toLocaleString()}
+                      Decided: {entry.decidedAt ? new Date(entry.decidedAt).toLocaleString() : 'N/A'}
                     </div>
                   </div>
                 ))}

@@ -24,7 +24,17 @@ export function FacultyDashboard() {
   useEffect(() => {
     fetch('/api/v1/events/approvals/pending', { credentials: 'include' })
       .then((r) => r.json())
-      .then((d) => { if (d.data?.events) setPending(d.data.events); })
+      .then((d) => {
+        if (d.data?.events) {
+          const normalized = d.data.events.map((e: any) => ({
+            ...e,
+            startTime: e.startTime || e.start_time,
+            organizerName: e.organizerName || e.organizer_name,
+            departmentName: e.departmentName || e.department_name,
+          }));
+          setPending(normalized);
+        }
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

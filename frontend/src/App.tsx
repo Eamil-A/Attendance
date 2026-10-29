@@ -21,6 +21,7 @@ import { CreateEventPage } from './pages/CreateEventPage';
 import { EventDetailPage } from './pages/EventDetailPage';
 import { EventAttendancePage } from './pages/EventAttendancePage';
 import { MembershipRequestsPage } from './pages/MembershipRequestsPage';
+import { ApprovalsPage } from './pages/ApprovalsPage';
 
 // Admin pages
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
@@ -51,6 +52,9 @@ export function App() {
         <Route path="/events/:id/attendance" element={<ProtectedRoute><AppShell><EventAttendancePage /></AppShell></ProtectedRoute>} />
         <Route path="/events/:id" element={<ProtectedRoute><AppShell><EventDetailPage /></AppShell></ProtectedRoute>} />
         <Route path="/events" element={<ProtectedRoute><AppShell><BrowseEventsPage /></AppShell></ProtectedRoute>} />
+
+        {/* ── Approvals Queue ── */}
+        <Route path="/approvals" element={<ProtectedRoute requiredPermission={['event:approve_faculty', 'event:approve_hod', 'university:view_config']}><AppShell><ApprovalsPage /></AppShell></ProtectedRoute>} />
 
         <Route path="/my-registrations" element={<ProtectedRoute><AppShell><MyRegistrationsPage /></AppShell></ProtectedRoute>} />
         <Route path="/notifications" element={<ProtectedRoute><AppShell><NotificationsPage /></AppShell></ProtectedRoute>} />

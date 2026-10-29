@@ -6,6 +6,7 @@ import { transaction } from '../config/database';
 const SEED_SQL_PATH = path.resolve(__dirname, '../../../database/seeds/001_seed_tenants_and_users.sql');
 
 export const DEV_PASSWORD = 'DevPassword123!';
+import { ensureAttendanceDemoEvent } from './seedDemoAttendanceEvent';
 
 interface SeedUserData {
   id: string;
@@ -318,6 +319,8 @@ export async function runSeeder(): Promise<void> {
       [AIT_ID]
     );
   });
+
+  await ensureAttendanceDemoEvent();
 
   console.log('--- Seed Completed Successfully ---');
   console.log('Demo Credentials for All Seed Users:');

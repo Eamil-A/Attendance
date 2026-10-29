@@ -127,7 +127,8 @@ export const eventRepository = {
              u.email AS organizer_email,
              d.name AS department_name,
              r.name AS venue_name,
-             r.location AS venue_location
+             r.location AS venue_location,
+             (SELECT COUNT(*)::int FROM event_registrations reg WHERE reg.event_id = e.id AND reg.status = 'REGISTERED') AS active_registrations_count
       FROM events e
       JOIN users u ON e.organizer_id = u.id
       JOIN departments d ON e.department_id = d.id
@@ -294,7 +295,8 @@ export const eventRepository = {
              u.email AS organizer_email,
              d.name AS department_name,
              r.name AS venue_name,
-             r.location AS venue_location
+             r.location AS venue_location,
+             (SELECT COUNT(*)::int FROM event_registrations reg WHERE reg.event_id = e.id AND reg.status = 'REGISTERED') AS active_registrations_count
       FROM events e
       JOIN users u ON e.organizer_id = u.id
       JOIN departments d ON e.department_id = d.id
@@ -486,19 +488,48 @@ export const eventRepository = {
              u.email AS organizer_email,
              d.name AS department_name,
              r.name AS venue_name,
-             r.location AS venue_location
+             r.location AS venue_location,
+             (SELECT COUNT(*)::int FROM event_registrations reg WHERE reg.event_id = e.id AND reg.status = 'REGISTERED') AS active_registrations_count
       FROM events e
       JOIN users u ON e.organizer_id = u.id
       JOIN departments d ON e.department_id = d.id
       LEFT JOIN resources r ON e.venue_id = r.id
       WHERE e.university_id = $1
-        AND e.organizer_id != $2
+        AND (e.organizer_id != $2 OR (
+          e.status = 'PENDING_FACULTY_REVIEW' AND EXISTS (
+            SELECT 1 FROM user_roles ur
+            WHERE ur.user_id = $2 AND ur.role = 'FACULTY_ADVISOR' AND (ur.department_id IS NULL OR ur.department_id = e.department_id)
+          ) AND NOT EXISTS (
+            SELECT 1 FROM user_roles ur2
+            JOIN users u2 ON ur2.user_id = u2.id
+            WHERE ur2.role = 'FACULTY_ADVISOR' AND ur2.department_id = e.department_id AND ur2.user_id != $2 AND u2.status = 'ACTIVE'
+          )
+        ))
         AND (${conditions.join(' OR ')})
       ORDER BY e.created_at ASC
     `;
 
     const result = await query<EventDetailRow>(sql, values);
     return result.rows;
+  },
+
+  async countOtherFacultyAdvisors(
+    departmentId: string,
+    excludeUserId: string,
+    universityId: string
+  ): Promise<number> {
+    const sql = `
+      SELECT COUNT(*)::int AS count
+      FROM user_roles ur
+      JOIN users u ON ur.user_id = u.id
+      WHERE u.university_id = $1
+        AND ur.role = 'FACULTY_ADVISOR'
+        AND (ur.department_id = $2 OR ur.department_id IS NULL)
+        AND ur.user_id != $3
+        AND u.status = 'ACTIVE'
+    `;
+    const result = await query<{ count: number }>(sql, [universityId, departmentId, excludeUserId]);
+    return result.rows[0]?.count ?? 0;
   },
 
   async getEligibility(eventId: string, client?: PoolClient): Promise<EventEligibilityRow | null> {

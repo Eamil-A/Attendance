@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSSE } from '../hooks/useSSE';
 import { Link } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
@@ -36,10 +37,38 @@ export function MyRegistrationsPage() {
     setLoading(true);
     fetch('/api/v1/events/registrations/me', { credentials: 'include' })
       .then((r) => r.json())
-      .then((d) => { if (d.data?.registrations) setRegistrations(d.data.registrations); })
+      .then((d) => {
+        if (d.data?.registrations) {
+          const mapped: Registration[] = d.data.registrations.map((r: any) => ({
+            registrationId: r.registrationId || r.registration_id,
+            eventId: r.eventId || r.event_id,
+            title: r.title,
+            description: r.description,
+            category: r.category,
+            startTime: r.startTime || r.start_time,
+            endTime: r.endTime || r.end_time,
+            registrationDeadline: r.registrationDeadline || r.registration_deadline,
+            eventStatus: r.eventStatus || r.event_status,
+            venueName: r.venueName || r.venue_name,
+            registrationStatus: r.registrationStatus || r.registration_status,
+            registeredAt: r.registeredAt || r.registered_at,
+            cancellationReason: r.cancellationReason || r.cancellation_reason,
+          }));
+          setRegistrations(mapped);
+        }
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
+
+  // Listen for real-time registration changes to keep the list up‑to‑date
+  useSSE({
+    eventTypes: ['registration_count_update'],
+    onEvent: (_e) => {
+      // Reload on any registration count update to reflect changes
+      load();
+    },
+  });
 
   useEffect(() => { load(); }, []);
 

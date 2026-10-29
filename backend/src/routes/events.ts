@@ -57,7 +57,23 @@ eventsRouter.get('/calendar', async (req: Request, res: Response, next: NextFunc
 eventsRouter.get('/approvals/pending', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const pending = await eventService.getPendingApprovals(req.user!);
-    res.status(200).json({ success: true, data: { events: pending } });
+    const mapped = pending.map((e) => ({
+      ...e,
+      startTime: e.start_time,
+      endTime: e.end_time,
+      registrationDeadline: e.registration_deadline,
+      organizerId: e.organizer_id,
+      departmentId: e.department_id,
+      venueId: e.venue_id,
+      universityId: e.university_id,
+      organizerName: e.organizer_name,
+      organizerEmail: e.organizer_email,
+      departmentName: e.department_name,
+      venueName: e.venue_name,
+      venueLocation: e.venue_location,
+      activeRegistrationsCount: Number(e.active_registrations_count ?? 0),
+    }));
+    res.status(200).json({ success: true, data: { events: mapped } });
   } catch (err) {
     next(err);
   }
@@ -433,7 +449,7 @@ eventsRouter.get('/:id/approvals', async (req: Request, res: Response, next: Nex
  * Register authenticated student for an event.
  * Enforces status, eligibility, capacity, and time conflict rules.
  */
-eventsRouter.post('/:id/register', async (req: Request, res: Response, next: NextFunction) => {
+eventsRouter.post('/:id/register', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const registration = await eventService.registerForEvent(req.params.id, req.user!);
     res.status(200).json({

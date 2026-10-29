@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredPermission?: string;
+  requiredPermission?: string | string[];
 }
 
 export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteProps) {
@@ -26,18 +26,22 @@ export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteP
     return <Navigate to="/sign-in" state={{ from: location }} replace />;
   }
 
-  if (requiredPermission && !user.permissions.includes(requiredPermission as never)) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', padding: '2rem' }}>
-        <div style={{ textAlign: 'center', maxWidth: '400px' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
-          <h2 style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Access Denied</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            You don't have permission to access this page.
-          </p>
+  if (requiredPermission) {
+    const perms = Array.isArray(requiredPermission) ? requiredPermission : [requiredPermission];
+    const hasPerm = perms.some((p) => user.permissions.includes(p as never));
+    if (!hasPerm) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', padding: '2rem' }}>
+          <div style={{ textAlign: 'center', maxWidth: '400px' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
+            <h2 style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Access Denied</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+              You don't have permission to access this page.
+            </p>
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
   }
 
   // User has an account but no university yet — redirect to onboarding

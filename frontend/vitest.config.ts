@@ -14,11 +14,11 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      // Resolve React packages from this frontend's node_modules
-      react: path.resolve(__dirname, 'node_modules/react'),
-      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
-      'react/jsx-dev-runtime': path.resolve(__dirname, 'node_modules/react/jsx-dev-runtime.js'),
-      'react/jsx-runtime': path.resolve(__dirname, 'node_modules/react/jsx-runtime.js'),
+      // Resolve React packages from workspace root to ensure a single React instance
+      react: path.resolve(__dirname, '../node_modules/react'),
+      'react-dom': path.resolve(__dirname, '../node_modules/react-dom'),
+      'react/jsx-dev-runtime': path.resolve(__dirname, '../node_modules/react/jsx-dev-runtime.js'),
+      'react/jsx-runtime': path.resolve(__dirname, '../node_modules/react/jsx-runtime.js'),
     },
   },
 });
